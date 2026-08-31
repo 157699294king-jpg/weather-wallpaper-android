@@ -44,14 +44,22 @@ public class WeatherReceiver extends BroadcastReceiver {
             try(BufferedReader r=new BufferedReader(new InputStreamReader(h.getInputStream()))){String line;while((line=r.readLine())!=null)out.append(line);}
             int code=new JSONObject(out.toString()).getJSONObject("current").getInt("weather_code");
             String key=key(code),cn=name(key),uri=MainActivity.wallpapers(c).getString(key,null);
-            if(uri==null)state(c,"当前天气："+cn+" · 请为此天气绑定壁纸");
-            else{
+            Bitmap b;
+            boolean custom=uri!=null;
+            if(custom){
                 try(InputStream in=c.getContentResolver().openInputStream(Uri.parse(uri))){
-                    Bitmap b=BitmapFactory.decodeStream(in);if(b==null)throw new Exception("壁纸图片无法读取");
-                    WallpaperManager.getInstance(c).setBitmap(b,null,true,WallpaperManager.FLAG_SYSTEM);
+                    b=BitmapFactory.decodeStream(in);
                 }
-                state(c,"当前天气："+cn+" · 桌面壁纸已同步");
+            }else{
+                state(c,"正在下载 "+cn+" 超清默认壁纸…");
+                HttpURLConnection image=(HttpURLConnection)new URL(defaultUrl(key)).openConnection();
+                image.setConnectTimeout(15000);image.setReadTimeout(25000);
+                image.setRequestProperty("User-Agent","WeatherWallpaper/1.2");
+                try(InputStream in=new BufferedInputStream(image.getInputStream())){b=BitmapFactory.decodeStream(in);}
             }
+            if(b==null)throw new Exception("壁纸图片无法读取");
+            WallpaperManager.getInstance(c).setBitmap(b,null,true,WallpaperManager.FLAG_SYSTEM);
+            state(c,"当前天气："+cn+" · "+(custom?"自定义":"超清默认")+"壁纸已同步");
         }catch(Exception e){state(c,"同步失败："+(e.getMessage()==null?"未知错误":e.getMessage()));}
     }
     @SuppressWarnings("MissingPermission") private static Location freshLocation(LocationManager lm){
@@ -62,6 +70,19 @@ public class WeatherReceiver extends BroadcastReceiver {
             lm.requestSingleUpdate(provider,listener,Looper.getMainLooper());latch.await(12,TimeUnit.SECONDS);
         }catch(Exception ignored){}finally{try{lm.removeUpdates(listener);}catch(Exception ignored){}}
         return result[0];
+    }
+    static String defaultUrl(String key){
+        String id;
+        switch(key){
+            case"clear":id="photo-1500530855697-b586d89ba3ee";break;
+            case"cloudy":id="photo-1499346030926-9a72daac6c63";break;
+            case"overcast":id="photo-1534088568595-a066f410bcda";break;
+            case"rain":id="photo-1519692933481-e162a57d6721";break;
+            case"storm":id="photo-1500674425229-f692875b0ab7";break;
+            case"snow":id="photo-1483664852095-d6cc6870702d";break;
+            default:id="photo-1487621167305-5d248087c724";
+        }
+        return "https://images.unsplash.com/"+id+"?auto=format&fit=crop&w=2160&h=3840&q=90";
     }
     static String key(int c){if(c==0)return"clear";if(c<=2)return"cloudy";if(c==3)return"overcast";if(c==45||c==48)return"fog";if(c>=71&&c<=86)return"snow";if(c>=95)return"storm";return"rain";}
     static String name(String k){switch(k){case"clear":return"晴天";case"cloudy":return"多云";case"overcast":return"阴天";case"rain":return"雨天";case"storm":return"雷雨";case"snow":return"雪天";default:return"雾霾";}}
