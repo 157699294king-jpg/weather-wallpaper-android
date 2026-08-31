@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
             getPreferences(0).edit().putString(choosing,u.toString()).apply();recreate();
         }
     }
-    private String savedMark(String k){return getPreferences(0).contains(k)?"已绑定壁纸  ✓":"选择本地图片";}
+    private String savedMark(String k){return getPreferences(0).contains(k)?"已绑定自定义壁纸  ✓":"热门超清默认壁纸";}
     private void refreshStatus(){String s=getSharedPreferences("state",0).getString("status","");if(!s.isEmpty()&&status!=null)status.setText(s);}
     static android.content.SharedPreferences wallpapers(Context c){return c.getSharedPreferences(MainActivity.class.getName(),0);}
     private TextView text(String s,int z,boolean bold,int color){TextView v=new TextView(this);v.setText(s);v.setTextSize(z);v.setTextColor(color);if(bold)v.setTypeface(Typeface.create("sans",Typeface.BOLD));return v;}
