@@ -41,6 +41,7 @@ public class WeatherReceiver extends BroadcastReceiver {
 
             Place place=resolvePlace(c,loc);
             state(c,place.display+" · 正在匹配中国气象局站点…");
+            if(place.query==null)throw new Exception("手机系统无法解析所在区县，请检查定位服务");
             String station=findCmaStation(place.query);
             if(station==null&&place.city!=null)station=findCmaStation(place.city);
             if(station==null)throw new Exception("中国气象局未匹配到当地气象站");
@@ -95,7 +96,7 @@ public class WeatherReceiver extends BroadcastReceiver {
                 return new Place(display.length()>0?display.toString():"当前位置",query,a.getLocality());
             }
         }catch(Exception ignored){}
-        return new Place("当前位置","北京","北京");
+        return new Place("当前位置",null,null);
     }
     static void add(Set<String>s,String v){if(v!=null&&!v.trim().isEmpty())s.add(v.trim());}
     static String first(String...v){for(String x:v)if(x!=null&&!x.trim().isEmpty())return x.trim();return"北京";}
