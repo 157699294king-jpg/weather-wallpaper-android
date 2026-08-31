@@ -37,6 +37,7 @@ public class WeatherReceiver extends BroadcastReceiver {
             if(loc==null)loc=freshLocation(lm);
             if(loc==null)throw new Exception("无法定位，请开启手机定位服务后重试");
             state(c,"正在连接天气服务…");
+            String area=reverseGeocode(loc);
             String q="https://api.open-meteo.com/v1/forecast?latitude="+loc.getLatitude()+"&longitude="+loc.getLongitude()+"&current=weather_code&timezone=auto";
             HttpURLConnection h=(HttpURLConnection)new URL(q).openConnection();h.setConnectTimeout(12000);h.setReadTimeout(12000);
             if(h.getResponseCode()!=200)throw new Exception("天气服务响应异常 "+h.getResponseCode());
@@ -54,7 +55,7 @@ public class WeatherReceiver extends BroadcastReceiver {
                 File cache=new File(c.getFilesDir(),"default_"+key+".jpg");
                 if(cache.exists()) b=BitmapFactory.decodeFile(cache.getAbsolutePath());
                 else{
-                    state(c,"正在下载 "+cn+" 超清默认壁纸…");
+                    state(c,area+" · 正在下载 "+cn+" 超清默认壁纸…");
                     HttpURLConnection image=(HttpURLConnection)new URL(defaultUrl(key)).openConnection();
                     image.setConnectTimeout(15000);image.setReadTimeout(25000);
                     image.setRequestProperty("User-Agent","WeatherWallpaper/1.2");
@@ -64,7 +65,7 @@ public class WeatherReceiver extends BroadcastReceiver {
             }
             if(b==null)throw new Exception("壁纸图片无法读取");
             WallpaperManager.getInstance(c).setBitmap(b,null,true,WallpaperManager.FLAG_SYSTEM);
-            state(c,"当前天气："+cn+" · "+(custom?"自定义":"超清默认")+"壁纸已同步");
+            state(c,area+" · "+cn+" · "+(custom?"自定义":"超清默认")+"壁纸已同步");
         }catch(Exception e){state(c,"同步失败："+(e.getMessage()==null?"未知错误":e.getMessage()));}
     }
     @SuppressWarnings("MissingPermission") private static Location freshLocation(LocationManager lm){
@@ -75,6 +76,27 @@ public class WeatherReceiver extends BroadcastReceiver {
             lm.requestSingleUpdate(provider,listener,Looper.getMainLooper());latch.await(12,TimeUnit.SECONDS);
         }catch(Exception ignored){}finally{try{lm.removeUpdates(listener);}catch(Exception ignored){}}
         return result[0];
+    }
+    static String reverseGeocode(Location loc){
+        try{
+            String u="https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat="+loc.getLatitude()+"&lon="+loc.getLongitude()+"&zoom=18&addressdetails=1&accept-language=zh-CN";
+            HttpURLConnection h=(HttpURLConnection)new URL(u).openConnection();
+            h.setConnectTimeout(10000);h.setReadTimeout(10000);
+            h.setRequestProperty("User-Agent","WeatherWallpaper-Android/1.3");
+            StringBuilder out=new StringBuilder();
+            try(BufferedReader r=new BufferedReader(new InputStreamReader(h.getInputStream()))){String line;while((line=r.readLine())!=null)out.append(line);}
+            JSONObject a=new JSONObject(out.toString()).getJSONObject("address");
+            java.util.LinkedHashSet<String> parts=new java.util.LinkedHashSet<>();
+            add(parts,a,"state");add(parts,a,"city");add(parts,a,"municipality");add(parts,a,"county");
+            add(parts,a,"town");add(parts,a,"village");add(parts,a,"hamlet");add(parts,a,"suburb");add(parts,a,"neighbourhood");
+            StringBuilder name=new StringBuilder();
+            for(String p:parts){if(name.length()>0)name.append(" ");name.append(p);}
+            if(name.length()>0)return name.toString();
+        }catch(Exception ignored){}
+        return "当前位置";
+    }
+    static void add(java.util.Set<String> parts,JSONObject a,String key){
+        String value=a.optString(key,"").trim();if(!value.isEmpty())parts.add(value);
     }
     static String defaultUrl(String key){
         String id;
