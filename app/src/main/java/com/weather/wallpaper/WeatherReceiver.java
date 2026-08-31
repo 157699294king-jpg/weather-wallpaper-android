@@ -51,11 +51,16 @@ public class WeatherReceiver extends BroadcastReceiver {
                     b=BitmapFactory.decodeStream(in);
                 }
             }else{
-                state(c,"正在下载 "+cn+" 超清默认壁纸…");
-                HttpURLConnection image=(HttpURLConnection)new URL(defaultUrl(key)).openConnection();
-                image.setConnectTimeout(15000);image.setReadTimeout(25000);
-                image.setRequestProperty("User-Agent","WeatherWallpaper/1.2");
-                try(InputStream in=new BufferedInputStream(image.getInputStream())){b=BitmapFactory.decodeStream(in);}
+                File cache=new File(c.getFilesDir(),"default_"+key+".jpg");
+                if(cache.exists()) b=BitmapFactory.decodeFile(cache.getAbsolutePath());
+                else{
+                    state(c,"正在下载 "+cn+" 超清默认壁纸…");
+                    HttpURLConnection image=(HttpURLConnection)new URL(defaultUrl(key)).openConnection();
+                    image.setConnectTimeout(15000);image.setReadTimeout(25000);
+                    image.setRequestProperty("User-Agent","WeatherWallpaper/1.2");
+                    try(InputStream in=new BufferedInputStream(image.getInputStream())){b=BitmapFactory.decodeStream(in);}
+                    if(b!=null)try(FileOutputStream outFile=new FileOutputStream(cache)){b.compress(Bitmap.CompressFormat.JPEG,92,outFile);}
+                }
             }
             if(b==null)throw new Exception("壁纸图片无法读取");
             WallpaperManager.getInstance(c).setBitmap(b,null,true,WallpaperManager.FLAG_SYSTEM);
